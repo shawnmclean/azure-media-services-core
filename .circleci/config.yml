@@ -1,0 +1,58 @@
+version: 2
+
+references:
+  primary_container: &primary_container
+    microsoft/dotnet:2.0-sdk
+
+  workspace_root: &workspace_root
+    ~/samelogic-core
+  container_root: &container_root
+    ~/
+
+  build_container_config: &build_container_config
+    docker:
+      - image: *primary_container
+    working_directory: *workspace_root
+    
+  attach_workspace: &attach_workspace
+    attach_workspace:
+      at: *workspace_root
+  attach_workspace_container: &attach_workspace_container
+    attach_workspace:
+      at: *container_root
+
+jobs:
+  build:
+    <<: *build_container_config
+    steps:
+      - checkout
+      - run: dotnet build ./Azure.MediaServices.Core.sln
+      - persist_to_workspace:
+          root: *workspace_root
+          paths:
+            - src/**/bin/*
+            - src/**/obj/*
+            - test/**/bin/*
+            - test/**/obj/*
+      - persist_to_workspace:
+          root: *container_root
+          paths:
+            - .nuget/packages
+  test:
+    <<: *build_container_config
+    steps:
+      - checkout
+      - *attach_workspace
+      - *attach_workspace_container
+      - run:
+          name: Run unit tests
+          command: |
+            dotnet test ./test/Azure.MediaServices.Core.IntegrationTests/Azure.MediaServices.Core.IntegrationTests.csproj --no-build
+workflows:
+  version: 2
+  build-test-and-deploy:
+    jobs:
+      - build
+      - test:
+          requires:
+            - build
