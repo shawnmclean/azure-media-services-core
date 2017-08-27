@@ -48,6 +48,16 @@ jobs:
           name: Run unit tests
           command: |
             dotnet test ./test/Azure.MediaServices.Core.IntegrationTests/Azure.MediaServices.Core.IntegrationTests.csproj --no-build
+  deploy:
+    <<: *build_container_config
+    steps:
+      - checkout
+      - *attach_workspace
+      - *attach_workspace_container
+      - run:
+          name: Package nuget
+          command: |
+            dotnet pack --include-symbols --no-build
 workflows:
   version: 2
   build-test-and-deploy:
