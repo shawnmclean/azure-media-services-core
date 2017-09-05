@@ -39,7 +39,7 @@ namespace Azure.MediaServices.Core
       
       _jsonSerializerSettings = new JsonSerializerSettings
       {
-        ContractResolver = new PrivateSetterCamelCasePropertyNamesContractResolver()
+        ContractResolver = new PrivateSetterContractResolver()
       };
 
       if (_httpClient == null)
@@ -53,7 +53,6 @@ namespace Azure.MediaServices.Core
     }
 
     //TODO:
-    // Get media processor by name, order by last version
     // Create asset from blob
     // Create a job
     // Get job result/state
@@ -78,6 +77,17 @@ namespace Azure.MediaServices.Core
     {
       return Get<Asset>("Assets");
     }
+
+    public Task<Asset> CreateAsset(string name)
+    {
+      var body = new
+      {
+        Name = name
+      };
+
+      return Post<Asset>("Assets", body);
+    }
+
     public Task<List<MediaProcessor>> GetMediaProcessors() {
       return Get<MediaProcessor>("MediaProcessors");
     }
@@ -92,6 +102,16 @@ namespace Azure.MediaServices.Core
       return responseObject.D.Results;
     }
 
+    internal async Task<TResponse> Post<TResponse>(string path, object body) {
+      var bodyContent = JsonConvert.SerializeObject(body, _jsonSerializerSettings);
+      var response = await _httpClient.PostAsync(path, new StringContent(bodyContent, Encoding.UTF8, "application/json"));
+      var stringContent = await response.Content.ReadAsStringAsync();
+      if (!response.IsSuccessStatusCode) {
+        throw new WebException("Failed");
+      }
+      var responseObject = JsonConvert.DeserializeObject<ODataResponse<TResponse>>(stringContent, _jsonSerializerSettings);
+      return responseObject.D;
+    }
     internal async Task<List<TResponse>> Send<TResponse>(string path, HttpMethod method, object body)
     {
       var request = new HttpRequestMessage(method, path);
