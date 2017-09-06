@@ -88,6 +88,30 @@ namespace Azure.MediaServices.Core
       return Post<Asset>("Assets", body);
     }
 
+    public Task<AssetFile> CreateAssetFile(AssetFile file)
+    {
+      var body = new
+      {
+        IsEncrypted = false,
+        IsPrimary = false,
+        MimeType = file.MimeType,
+        Name = file.Name,
+        ParentAssetId = file.ParentAssetId
+      };
+      return Post<AssetFile>("Files", body);
+    }
+    public async Task<AssetFile> UpdateAssetFile(AssetFile file) {
+      var body = new {
+        file.Id,
+        file.MimeType,
+        file.Name,
+        file.ParentAssetId,
+        ContentFileSize = file.ContentFileSize.ToString()
+      };
+      await Post<AssetFile>($"Files('{file.Id}')", body, new HttpMethod("MERGE"));
+      return file;
+    }
+
     public Task<List<MediaProcessor>> GetMediaProcessors() {
       return Get<MediaProcessor>("MediaProcessors");
     }
@@ -102,19 +126,28 @@ namespace Azure.MediaServices.Core
       return responseObject.D.Results;
     }
 
-    internal async Task<TResponse> Post<TResponse>(string path, object body) {
+    internal async Task<TResponse> Post<TResponse>(string path, object body, HttpMethod method = null) where TResponse : class{
+      var message = new HttpRequestMessage(HttpMethod.Post, Uri.EscapeDataString(path));
+      if (method != null)
+      {
+        message.Method = method;
+      }
       var bodyContent = JsonConvert.SerializeObject(body, _jsonSerializerSettings);
-      var response = await _httpClient.PostAsync(path, new StringContent(bodyContent, Encoding.UTF8, "application/json"));
+      message.Content = new StringContent(bodyContent, Encoding.UTF8, "application/json");
+      var response = await _httpClient.SendAsync(message);
       var stringContent = await response.Content.ReadAsStringAsync();
       if (!response.IsSuccessStatusCode) {
         throw new WebException("Failed");
       }
+      if (response.StatusCode == HttpStatusCode.NoContent)
+        return await Task.FromResult((TResponse)null);
+
       var responseObject = JsonConvert.DeserializeObject<ODataResponse<TResponse>>(stringContent, _jsonSerializerSettings);
       return responseObject.D;
     }
     internal async Task<List<TResponse>> Send<TResponse>(string path, HttpMethod method, object body)
     {
-      var request = new HttpRequestMessage(method, path);
+      var request = new HttpRequestMessage(method, Uri.EscapeDataString(path));
       var bodyContent = JsonConvert.SerializeObject(body, _jsonSerializerSettings);
       request.Content = new StringContent(bodyContent);
 
