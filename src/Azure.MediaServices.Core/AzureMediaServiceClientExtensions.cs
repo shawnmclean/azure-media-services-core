@@ -38,10 +38,12 @@ namespace Azure.MediaServices.Core
 
       var assetFile = await client.CreateAssetFile(sourceBlob.Name, asset.Id).ConfigureAwait(false);
 
+      await blob.FetchAttributesAsync();
+
       assetFile.IsPrimary = true;
       if (sourceBlob.Properties != null) {
-        assetFile.ContentFileSize = sourceBlob.Properties.Length;
-        assetFile.MimeType = sourceBlob.Properties.ContentType;
+        assetFile.ContentFileSize = blob.Properties.Length;
+        assetFile.MimeType = blob.Properties.ContentType;
       }
 
       await client.UpdateAssetFile(assetFile).ConfigureAwait(false);
