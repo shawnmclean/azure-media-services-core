@@ -11,5 +11,6 @@ namespace Azure.MediaServices.Core.Assets
     public DateTime Created { get; set; }
     public DateTime LastModified { get; set; }
     public string Name { get; set; }
+    public string Uri { get; set; }
   }
 }

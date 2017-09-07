@@ -26,18 +26,17 @@ namespace Azure.MediaServices.Core
         throw new ArgumentException("The destination storage credentials must contain the account key credentials.", "destinationStorageCredentials");
       }
 
-      var asset = await client.CreateAsync(sourceBlob.Name, storageCredentials.AccountName, cancellationToken).ConfigureAwait(false);
+      var asset = await client.CreateAsset(sourceBlob.Name, storageCredentials.AccountName).ConfigureAwait(false);
       cancellationToken.ThrowIfCancellationRequested();
-
-      IRetryPolicy retryPolicy = context.MediaServicesClassFactory.GetBlobStorageClientRetryPolicy().AsAzureStorageClientRetryPolicy();
-      BlobRequestOptions blobOptions = new BlobRequestOptions { RetryPolicy = retryPolicy };
-      CloudBlobContainer container = new CloudBlobContainer(asset.Uri, storageCredentials);
+      
+      BlobRequestOptions blobOptions = new BlobRequestOptions();
+      CloudBlobContainer container = new CloudBlobContainer(new Uri(asset.Uri), storageCredentials);
       CloudBlockBlob blob = container.GetBlockBlobReference(sourceBlob.Name);
 
       await CopyBlobHelpers.CopyBlobAsync(sourceBlob, blob, blobOptions, cancellationToken).ConfigureAwait(false);
       cancellationToken.ThrowIfCancellationRequested();
 
-      var assetFile = await client.CreateAssetFile(sourceBlob.Name, cancellationToken).ConfigureAwait(false);
+      var assetFile = await client.CreateAssetFile(sourceBlob.Name, asset.Id).ConfigureAwait(false);
 
       assetFile.IsPrimary = true;
       if (sourceBlob.Properties != null) {
@@ -45,7 +44,7 @@ namespace Azure.MediaServices.Core
         assetFile.MimeType = sourceBlob.Properties.ContentType;
       }
 
-      await assetFile.UpdateAsync().ConfigureAwait(false);
+      await client.UpdateAssetFile(assetFile).ConfigureAwait(false);
 
       return asset;
     }

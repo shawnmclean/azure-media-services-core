@@ -11,7 +11,7 @@ namespace Azure.MediaServices.Core.Assets
     public DateTime LastModified { get; set; }
     public string Name { get; set; }
     public string ParentAssetId { get; set; }
-    public int ContentFileSize { get; set; }
+    public long ContentFileSize { get; set; }
     public string MimeType { get; set; }
     public bool IsEncrypted { get; set; }
     public bool IsPrimary { get; set; }

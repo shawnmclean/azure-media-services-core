@@ -78,25 +78,24 @@ namespace Azure.MediaServices.Core
       return Get<Asset>("Assets");
     }
 
-    public Task<Asset> CreateAsset(string name)
+    public Task<Asset> CreateAsset(string name, string storageAccountName)
     {
       var body = new
       {
-        Name = name
+        Name = name,
+        Options = 0,
+        StorageAccountName = storageAccountName
       };
 
       return Post<Asset>("Assets", body);
     }
 
-    public Task<AssetFile> CreateAssetFile(AssetFile file)
+    public Task<AssetFile> CreateAssetFile(string name, string parentAssetId)
     {
       var body = new
       {
-        IsEncrypted = false,
-        IsPrimary = false,
-        MimeType = file.MimeType,
-        Name = file.Name,
-        ParentAssetId = file.ParentAssetId
+        Name = name,
+        ParentAssetId = parentAssetId
       };
       return Post<AssetFile>("Files", body);
     }
