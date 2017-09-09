@@ -10,6 +10,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Web;
 using Azure.MediaServices.Core.Assets;
+using Azure.MediaServices.Core.Jobs;
 using Azure.MediaServices.Core.MediaProcessors;
 using Azure.MediaServices.Core.Models;
 using Newtonsoft.Json;
@@ -71,6 +72,24 @@ namespace Azure.MediaServices.Core
     private async Task Initialize()
     {
       await SetupJWT();
+    }
+
+    public async Task CreateJob(Job job)
+    {
+      var body = new
+      {
+        Name = job.Name,
+        InputMediaAssets = job.InputMediaAssets.Select(m => new
+        {
+          __metadata = new { uri = m.Metadata.Uri }
+        }),
+        Tasks = job.Tasks.Select(t => new
+        {
+          Configuration = t.Configuration,
+          MediaProcessorId = t.MediaProcessorId
+        })
+      };
+      await Post<Job>("Jobs", body);
     }
 
     public Task<List<Asset>> GetAssets()
