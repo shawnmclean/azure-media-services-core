@@ -74,7 +74,7 @@ namespace Azure.MediaServices.Core
       await SetupJWT();
     }
 
-    public async Task CreateJob(Job job)
+    public async Task<JobResponse> CreateJob(Job job)
     {
       var body = new
       {
@@ -86,10 +86,17 @@ namespace Azure.MediaServices.Core
         Tasks = job.Tasks.Select(t => new
         {
           Configuration = t.Configuration,
-          MediaProcessorId = t.MediaProcessorId
+          MediaProcessorId = t.MediaProcessorId,
+          TaskBody = t.TaskBody
         })
       };
-      await Post<Job>("Jobs", body);
+      _httpClient.DefaultRequestHeaders.Remove("DataServiceVersion");
+      _httpClient.DefaultRequestHeaders.Add("DataServiceVersion", "2.0");
+      var jobResponse = await Post<JobResponse>("Jobs", body);
+      _httpClient.DefaultRequestHeaders.Remove("DataServiceVersion");
+      _httpClient.DefaultRequestHeaders.Add("DataServiceVersion", "3.0");
+
+      return jobResponse;
     }
 
     public Task<List<Asset>> GetAssets()
