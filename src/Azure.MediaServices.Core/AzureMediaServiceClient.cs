@@ -9,8 +9,10 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web;
+using Azure.MediaServices.Core.AccessPolicies;
 using Azure.MediaServices.Core.Assets;
 using Azure.MediaServices.Core.Jobs;
+using Azure.MediaServices.Core.Locators;
 using Azure.MediaServices.Core.MediaProcessors;
 using Azure.MediaServices.Core.Models;
 using Newtonsoft.Json;
@@ -104,7 +106,7 @@ namespace Azure.MediaServices.Core
       return GetOne<JobResponse>($"Jobs('{Uri.EscapeDataString(id)}')");
     }
     public Task<List<Asset>> GetJobOutputAsset(string id) {
-      return Get<Asset>($"Jobs('{Uri.EscapeDataString(id)}')/InputMediaAssets");
+      return Get<Asset>($"Jobs('{Uri.EscapeDataString(id)}')/OutputMediaAssets");
     }
 
     public Task<List<Asset>> GetAssets()
@@ -127,6 +129,26 @@ namespace Azure.MediaServices.Core
       return Post<Asset>("Assets", body);
     }
 
+    public Task<AccessPolicy> CreateAccessPolicy(string name, int duration, int permissions)
+    {
+      var body = new
+      {
+        Name = name,
+        DurationInMinutes = duration,
+        Permissions = permissions
+      };
+      return Post<AccessPolicy>("AccessPolicies", body);
+    }
+
+    public Task<Locator> CreateLocator(string accessPolicyId, string assetId, DateTime startTime, int type) {
+      var body = new {
+        AccessPolicyId = accessPolicyId,
+        AssetId = assetId,
+        StartTime = startTime,
+        Type = type
+      };
+      return Post<Locator>("Locators", body);
+    }
     public Task<AssetFile> CreateAssetFile(string name, string parentAssetId)
     {
       var body = new

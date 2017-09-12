@@ -14,6 +14,5 @@ namespace Azure.MediaServices.Core.Locators
     public string BaseUri { get; set; }
     public string AccessPolicyId { get; set; }
     public string AssetId { get; set; }
-
   }
 }
