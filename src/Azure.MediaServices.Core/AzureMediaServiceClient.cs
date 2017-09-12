@@ -103,12 +103,18 @@ namespace Azure.MediaServices.Core
     {
       return GetOne<JobResponse>($"Jobs('{Uri.EscapeDataString(id)}')");
     }
+    public Task<List<Asset>> GetJobOutputAsset(string id) {
+      return Get<Asset>($"Jobs('{Uri.EscapeDataString(id)}')/InputMediaAssets");
+    }
 
     public Task<List<Asset>> GetAssets()
     {
       return Get<Asset>("Assets");
     }
 
+    public Task<List<AssetFile>> GetAssetFiles(string id) {
+      return Get<AssetFile>($"Assets('{Uri.EscapeDataString(id)}')/Files");
+    }
     public Task<Asset> CreateAsset(string name, string storageAccountName)
     {
       var body = new

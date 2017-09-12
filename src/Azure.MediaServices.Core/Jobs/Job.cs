@@ -35,7 +35,7 @@ namespace Azure.MediaServices.Core.Jobs
     public DateTime Created { get; set; }
     public DateTime LastModified { get; set; }
     public int RunningDuration { get; set; }
-    public int State { get; set; }
+    public JobState State { get; set; }
     public DeferredAsset InputMediaAssets { get; set; }
   }
 
@@ -49,5 +49,16 @@ namespace Azure.MediaServices.Core.Jobs
   {
     [JsonProperty("uri")]
     public string Uri { get; set; }
+  }
+
+  public enum JobState
+  {
+    Queued = 0,
+    Scheduled = 1,
+    Processing = 2,
+    Finished = 3,
+    Error = 4,
+    Canceled = 5,
+    Canceling = 6
   }
 }
