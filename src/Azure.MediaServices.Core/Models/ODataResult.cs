@@ -5,6 +5,10 @@ using Newtonsoft.Json;
 
 namespace Azure.MediaServices.Core.Models
 {
+  internal class ODataSingleResult<T>
+  {
+    public T D { get; set; }
+  }
   internal class ODataResult<T>
   {
     public D<T> D { get; set; }

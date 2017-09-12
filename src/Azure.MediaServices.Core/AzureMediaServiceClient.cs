@@ -99,6 +99,11 @@ namespace Azure.MediaServices.Core
       return jobResponse;
     }
 
+    public Task<JobResponse> GetJob(string id)
+    {
+      return GetOne<JobResponse>($"Jobs('{Uri.EscapeDataString(id)}')");
+    }
+
     public Task<List<Asset>> GetAssets()
     {
       return Get<Asset>("Assets");
@@ -149,6 +154,15 @@ namespace Azure.MediaServices.Core
       }
       var responseObject = JsonConvert.DeserializeObject<ODataResult<TResponse>>(stringContent, _jsonSerializerSettings);
       return responseObject.D.Results;
+    }
+    internal async Task<TResponse> GetOne<TResponse>(string path) {
+      var response = await _httpClient.GetAsync(path);
+      var stringContent = await response.Content.ReadAsStringAsync();
+      if (!response.IsSuccessStatusCode) {
+        throw new WebException("Failed");
+      }
+      var responseObject = JsonConvert.DeserializeObject<ODataSingleResult<TResponse>>(stringContent, _jsonSerializerSettings);
+      return responseObject.D;
     }
 
     internal async Task<TResponse> Post<TResponse>(string path, object body, HttpMethod method = null) where TResponse : class{
