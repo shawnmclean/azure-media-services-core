@@ -17,9 +17,9 @@ namespace Azure.MediaServices.Core.Assets
     public bool IsEncrypted { get; set; }
     public bool IsPrimary { get; set; }
 
-    public Uri BlobUri(Locator locator)
+    public Uri BlobUri(Asset asset)
     {
-      var uriBuilder = new UriBuilder(locator.BaseUri);
+      var uriBuilder = new UriBuilder(asset.Uri);
       uriBuilder.Path += String.Concat("/", Name);
       return uriBuilder.Uri;
     }

@@ -13,7 +13,7 @@ namespace Azure.MediaServices.Core
   public static class AzureMediaServiceClientExtensions
   {
 
-    public static async Task<Asset> CreateFromBlobAsync(this AzureMediaServiceClient client, CloudBlockBlob sourceBlob, StorageCredentials storageCredentials, CancellationToken cancellationToken) {
+    public static async Task<Asset> CreateFromBlobAsync(this IAzureMediaServiceClient client, CloudBlockBlob sourceBlob, StorageCredentials storageCredentials, CancellationToken cancellationToken) {
       if (sourceBlob == null) {
         throw new ArgumentNullException("sourceBlob", "The source blob cannot be null.");
       }

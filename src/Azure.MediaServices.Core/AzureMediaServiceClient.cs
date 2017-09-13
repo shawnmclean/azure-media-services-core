@@ -26,13 +26,13 @@ namespace Azure.MediaServices.Core
     private readonly JsonSerializerSettings _jsonSerializerSettings;
     private readonly string _tenantDomain;
 
-    private AzureMediaServiceClient(HttpClient httpClient, string clientId, string clientSecret, string restApiUrl,
+    public AzureMediaServiceClient(HttpClient httpClient, string clientId, string clientSecret, string restApiUrl,
       string tenantDomain) : this(clientId, clientSecret, restApiUrl, tenantDomain)
     {
       _httpClient = httpClient;
     }
 
-    private AzureMediaServiceClient(string clientId, string clientSecret, string restApiUrl, string tenantDomain)
+    public AzureMediaServiceClient(string clientId, string clientSecret, string restApiUrl, string tenantDomain)
     {
       _clientId = clientId;
       _clientSecret = clientSecret;
@@ -51,25 +51,12 @@ namespace Azure.MediaServices.Core
         _httpClient.DefaultRequestHeaders.Add("MaxDataServiceVersion", "3.0");
         _httpClient.DefaultRequestHeaders.Add("accept", "application/json;odata=verbose");
       }
-    }
 
-    public static async Task<AzureMediaServiceClient> CreateAsync(HttpClient httpClient, string clientId,
-      string clientSecret, string restApiUrl, string tenantDomain)
-    {
-      var client = new AzureMediaServiceClient(httpClient, clientId, clientSecret, restApiUrl, tenantDomain);
-      await client.Initialize();
-      return client;
+      Initialization = InitializeAsync();
     }
+    public Task Initialization { get; private set; }
 
-    public static async Task<AzureMediaServiceClient> CreateAsync(string clientId, string clientSecret,
-      string restApiUrl, string tenantDomain)
-    {
-      var client = new AzureMediaServiceClient(clientId, clientSecret, restApiUrl, tenantDomain);
-      await client.Initialize();
-      return client;
-    }
-
-    private async Task Initialize()
+    private async Task InitializeAsync()
     {
       await SetupJWT();
     }

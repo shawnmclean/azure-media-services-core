@@ -11,6 +11,7 @@ namespace Azure.MediaServices.Core
 {
   public interface IAzureMediaServiceClient
   {
+    Task Initialization { get; }
     Task<AccessPolicy> CreateAccessPolicy(string name, int duration, int permissions);
     Task<Asset> CreateAsset(string name, string storageAccountName);
     Task<AssetFile> CreateAssetFile(string name, string parentAssetId);
