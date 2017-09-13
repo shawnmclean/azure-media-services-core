@@ -2,6 +2,12 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <Authors>Shawn Mclean</Authors>
+    <Product />
+    <Company />
+    <Description>Hacked up azure media services library that calls some REST api endpoint</Description>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Version>0.0.2</Version>
   </PropertyGroup>
 
   <ItemGroup>
