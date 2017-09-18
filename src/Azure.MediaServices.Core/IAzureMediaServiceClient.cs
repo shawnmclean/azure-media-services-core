@@ -13,9 +13,11 @@ namespace Azure.MediaServices.Core
   {
     Task Initialization { get; }
     Task<AccessPolicy> CreateAccessPolicy(string name, int duration, int permissions);
+    Task DeleteAsset(string id);
     Task<Asset> CreateAsset(string name, string storageAccountName);
     Task<AssetFile> CreateAssetFile(string name, string parentAssetId);
     Task<JobResponse> CreateJob(Job job);
+    Task DeleteJob(string id);
     Task<Locator> CreateLocator(string accessPolicyId, string assetId, DateTime startTime, int type);
     Task<List<AssetFile>> GetAssetFiles(string id);
     Task<List<Asset>> GetAssets();

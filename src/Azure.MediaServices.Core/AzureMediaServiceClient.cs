@@ -90,6 +90,10 @@ namespace Azure.MediaServices.Core
     {
       return GetOne<JobResponse>($"Jobs('{Uri.EscapeDataString(id)}')");
     }
+    public Task DeleteJob(string id) {
+
+      return Delete($"Jobs('{Uri.EscapeDataString(id)}')");
+    }
 
     public Task<List<Asset>> GetJobOutputAsset(string id)
     {
@@ -116,6 +120,11 @@ namespace Azure.MediaServices.Core
       };
 
       return Post<Asset>("Assets", body);
+    }
+
+    public Task DeleteAsset(string id) {
+
+      return Delete($"Assets('{Uri.EscapeDataString(id)}')");
     }
 
     public Task<AccessPolicy> CreateAccessPolicy(string name, int duration, int permissions)
@@ -174,7 +183,7 @@ namespace Azure.MediaServices.Core
     {
       var response = await _httpClient.GetAsync(path);
       var stringContent = await response.Content.ReadAsStringAsync();
-      if (!response.IsSuccessStatusCode) throw new WebException("Failed");
+      if (!response.IsSuccessStatusCode) throw new HttpRequestException($"GET Failed: {stringContent}, HttpStatus: {response.StatusCode}");
       var responseObject =
         JsonConvert.DeserializeObject<ODataResult<TResponse>>(stringContent, _jsonSerializerSettings);
       return responseObject.D.Results;
@@ -184,12 +193,18 @@ namespace Azure.MediaServices.Core
     {
       var response = await _httpClient.GetAsync(path);
       var stringContent = await response.Content.ReadAsStringAsync();
-      if (!response.IsSuccessStatusCode) throw new WebException("Failed");
+      if (!response.IsSuccessStatusCode) throw new HttpRequestException($"GET Failed: {stringContent}, HttpStatus: {response.StatusCode}");
       var responseObject =
         JsonConvert.DeserializeObject<ODataSingleResult<TResponse>>(stringContent, _jsonSerializerSettings);
       return responseObject.D;
     }
 
+    internal async Task Delete(string path) {
+      var message = new HttpRequestMessage(HttpMethod.Delete, path);
+      var response = await _httpClient.SendAsync(message);
+      var stringContent = await response.Content.ReadAsStringAsync();
+      if (!response.IsSuccessStatusCode) throw new HttpRequestException($"{message.Method.Method} Failed: {stringContent}, HttpStatus: {response.StatusCode}");
+    }
     internal async Task<TResponse> Post<TResponse>(string path, object body, HttpMethod method = null)
       where TResponse : class
     {
@@ -200,7 +215,7 @@ namespace Azure.MediaServices.Core
       message.Content = new StringContent(bodyContent, Encoding.UTF8, "application/json");
       var response = await _httpClient.SendAsync(message);
       var stringContent = await response.Content.ReadAsStringAsync();
-      if (!response.IsSuccessStatusCode) throw new WebException("Failed");
+      if (!response.IsSuccessStatusCode) throw new HttpRequestException($"{message.Method.Method} Failed: {stringContent}, HttpStatus: {response.StatusCode}");
       if (response.StatusCode == HttpStatusCode.NoContent)
         return await Task.FromResult((TResponse) null);
 

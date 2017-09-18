@@ -7,7 +7,7 @@
     <Company />
     <Description>Hacked up azure media services library that calls some REST api endpoint</Description>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <Version>0.0.2</Version>
+    <Version>0.0.5</Version>
   </PropertyGroup>
 
   <ItemGroup>
