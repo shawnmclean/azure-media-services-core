@@ -1,43 +1,35 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
-using System.Web;
 using Azure.MediaServices.Core.AccessPolicies;
 using Azure.MediaServices.Core.Assets;
+using Azure.MediaServices.Core.EncodingReservedUnitTypes;
 using Azure.MediaServices.Core.Jobs;
 using Azure.MediaServices.Core.Locators;
 using Azure.MediaServices.Core.MediaProcessors;
 using Azure.MediaServices.Core.Models;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 
 namespace Azure.MediaServices.Core
 {
+
   public class AzureMediaServiceClient : IAzureMediaServiceClient
   {
-    private readonly string _clientId;
-    private readonly string _clientSecret;
+    private readonly string _restApiUrl;
     private readonly HttpClient _httpClient;
     private readonly JsonSerializerSettings _jsonSerializerSettings;
-    private readonly string _tenantDomain;
+    private readonly AdalTokenClient _adalTokenClient;
 
-    public AzureMediaServiceClient(HttpClient httpClient, string clientId, string clientSecret, string restApiUrl,
-      string tenantDomain) : this(clientId, clientSecret, restApiUrl, tenantDomain)
+    public AzureMediaServiceClient(string tenantId, string clientId, string clientSecret, string restApiUrl)
     {
-      _httpClient = httpClient;
-    }
-
-    public AzureMediaServiceClient(string clientId, string clientSecret, string restApiUrl, string tenantDomain)
-    {
-      _clientId = clientId;
-      _clientSecret = clientSecret;
-      _tenantDomain = tenantDomain;
-
+      _restApiUrl = restApiUrl;
+      _adalTokenClient = new AdalTokenClient(clientId, clientSecret, tenantId);
       _jsonSerializerSettings = new JsonSerializerSettings
       {
         ContractResolver = new PrivateSetterContractResolver()
@@ -45,20 +37,12 @@ namespace Azure.MediaServices.Core
 
       if (_httpClient == null)
       {
-        _httpClient = new HttpClient {BaseAddress = new Uri(restApiUrl)};
-        _httpClient.DefaultRequestHeaders.Add("x-ms-version", "2.7");
+        _httpClient = new HttpClient { BaseAddress = new Uri(restApiUrl) };
+        _httpClient.DefaultRequestHeaders.Add("x-ms-version", "2.15");
         _httpClient.DefaultRequestHeaders.Add("DataServiceVersion", "3.0");
         _httpClient.DefaultRequestHeaders.Add("MaxDataServiceVersion", "3.0");
         _httpClient.DefaultRequestHeaders.Add("accept", "application/json;odata=verbose");
       }
-
-      Initialization = InitializeAsync();
-    }
-    public Task Initialization { get; private set; }
-
-    private async Task InitializeAsync()
-    {
-      await SetupJWT();
     }
 
     public async Task<JobResponse> CreateJob(Job job)
@@ -68,7 +52,7 @@ namespace Azure.MediaServices.Core
         job.Name,
         InputMediaAssets = job.InputMediaAssets.Select(m => new
         {
-          __metadata = new {uri = m.Metadata.Uri}
+          __metadata = new { uri = m.Metadata?.Uri ?? Path.Combine(_restApiUrl, $"Assets('{Uri.EscapeDataString(m.Id)}')") }
         }),
         Tasks = job.Tasks.Select(t => new
         {
@@ -77,21 +61,20 @@ namespace Azure.MediaServices.Core
           t.TaskBody
         })
       };
-      _httpClient.DefaultRequestHeaders.Remove("DataServiceVersion");
-      _httpClient.DefaultRequestHeaders.Add("DataServiceVersion", "2.0");
-      var jobResponse = await Post<JobResponse>("Jobs", body);
-      _httpClient.DefaultRequestHeaders.Remove("DataServiceVersion");
-      _httpClient.DefaultRequestHeaders.Add("DataServiceVersion", "3.0");
-
+      var jobResponse = await Post<JobResponse>("Jobs", body, verboseOdata: true);
       return jobResponse;
     }
 
+    public Task<List<JobResponse>> GetJobs(string filter)
+    {
+      return Get<JobResponse>($"Jobs?$filter={filter}");
+    }
     public Task<JobResponse> GetJob(string id)
     {
       return GetOne<JobResponse>($"Jobs('{Uri.EscapeDataString(id)}')");
     }
-    public Task DeleteJob(string id) {
-
+    public Task DeleteJob(string id)
+    {
       return Delete($"Jobs('{Uri.EscapeDataString(id)}')");
     }
 
@@ -100,14 +83,34 @@ namespace Azure.MediaServices.Core
       return Get<Asset>($"Jobs('{Uri.EscapeDataString(id)}')/OutputMediaAssets");
     }
 
+    public Task<List<Asset>> GetJobInputAsset(string id)
+    {
+      return Get<Asset>($"Jobs('{Uri.EscapeDataString(id)}')/InputMediaAssets");
+    }
+
     public Task<List<Asset>> GetAssets()
     {
       return Get<Asset>("Assets");
     }
 
+    public Task<List<Locator>> GetLocators(string id)
+    {
+      return Get<Locator>($"Assets('{Uri.EscapeDataString(id)}')/Locators");
+    }
+
+    public Task DeleteLocator(string id)
+    {
+      return Delete($"Locators('{Uri.EscapeDataString(id)}')");
+    }
+
     public Task<List<AssetFile>> GetAssetFiles(string id)
     {
       return Get<AssetFile>($"Assets('{Uri.EscapeDataString(id)}')/Files");
+    }
+
+    public Task<Asset> GetAsset(string id)
+    {
+      return GetOne<Asset>($"Assets('{Uri.EscapeDataString(id)}')");
     }
 
     public Task<Asset> CreateAsset(string name, string storageAccountName)
@@ -122,9 +125,15 @@ namespace Azure.MediaServices.Core
       return Post<Asset>("Assets", body);
     }
 
-    public Task DeleteAsset(string id) {
+    public Task DeleteAsset(string id)
+    {
 
       return Delete($"Assets('{Uri.EscapeDataString(id)}')");
+    }
+
+    public Task CreateFileInfos(string id)
+    {
+      return Get($"CreateFileInfos?assetid='{Uri.EscapeDataString(id)}'");
     }
 
     public Task<AccessPolicy> CreateAccessPolicy(string name, int duration, int permissions)
@@ -136,6 +145,11 @@ namespace Azure.MediaServices.Core
         Permissions = permissions
       };
       return Post<AccessPolicy>("AccessPolicies", body);
+    }
+
+    public Task DeleteAccessPolicy(string id)
+    {
+      return Delete($"AccessPolicies('{Uri.EscapeDataString(id)}')");
     }
 
     public Task<Locator> CreateLocator(string accessPolicyId, string assetId, DateTime startTime, int type)
@@ -174,6 +188,21 @@ namespace Azure.MediaServices.Core
       return file;
     }
 
+    public async Task<EncodingReservedUnitType> GetEncodingReservedUnit()
+    {
+      var result = await Get<EncodingReservedUnitType>("EncodingReservedUnitTypes");
+      return result.FirstOrDefault();
+    }
+
+    public Task UpdateEncodingReservedUnits(string accountId, int reservedUnits)
+    {
+      var body = new
+      {
+        CurrentReservedUnits = reservedUnits
+      };
+      return Post<EncodingReservedUnitType>($"EncodingReservedUnitTypes(guid'{accountId}')", body, HttpMethod.Put);
+    }
+
     public Task<List<MediaProcessor>> GetMediaProcessors()
     {
       return Get<MediaProcessor>("MediaProcessors");
@@ -181,31 +210,54 @@ namespace Azure.MediaServices.Core
 
     internal async Task<List<TResponse>> Get<TResponse>(string path)
     {
-      var response = await _httpClient.GetAsync(path);
+      var message = new HttpRequestMessage(HttpMethod.Get, path);
+      var response = await SendAsync(message);
       var stringContent = await response.Content.ReadAsStringAsync();
-      if (!response.IsSuccessStatusCode) throw new HttpRequestException($"GET Failed: {stringContent}, HttpStatus: {response.StatusCode}");
+      if (!response.IsSuccessStatusCode)
+      {
+        throw new HttpRequestException($"GET Failed: {stringContent}, HttpStatus: {response.StatusCode}");
+      }
       var responseObject =
         JsonConvert.DeserializeObject<ODataResult<TResponse>>(stringContent, _jsonSerializerSettings);
       return responseObject.D.Results;
     }
 
-    internal async Task<TResponse> GetOne<TResponse>(string path)
+    internal async Task<TResponse> GetOne<TResponse>(string path) where TResponse : class
     {
-      var response = await _httpClient.GetAsync(path);
+      var message = new HttpRequestMessage(HttpMethod.Get, path);
+      var response = await SendAsync(message);
       var stringContent = await response.Content.ReadAsStringAsync();
-      if (!response.IsSuccessStatusCode) throw new HttpRequestException($"GET Failed: {stringContent}, HttpStatus: {response.StatusCode}");
+      if (!response.IsSuccessStatusCode)
+      {
+        throw new HttpRequestException($"GET Failed: {stringContent}, HttpStatus: {response.StatusCode}");
+      }
       var responseObject =
         JsonConvert.DeserializeObject<ODataSingleResult<TResponse>>(stringContent, _jsonSerializerSettings);
       return responseObject.D;
     }
 
-    internal async Task Delete(string path) {
-      var message = new HttpRequestMessage(HttpMethod.Delete, path);
-      var response = await _httpClient.SendAsync(message);
-      var stringContent = await response.Content.ReadAsStringAsync();
-      if (!response.IsSuccessStatusCode) throw new HttpRequestException($"{message.Method.Method} Failed: {stringContent}, HttpStatus: {response.StatusCode}");
+    internal async Task Get(string path)
+    {
+      var message = new HttpRequestMessage(HttpMethod.Get, path);
+      var response = await SendAsync(message);
+      if (!response.IsSuccessStatusCode)
+      {
+        throw new HttpRequestException($"GET Failed: {path}, HttpStatus: {response.StatusCode}");
+      }
     }
-    internal async Task<TResponse> Post<TResponse>(string path, object body, HttpMethod method = null)
+
+    internal async Task Delete(string path)
+    {
+      var message = new HttpRequestMessage(HttpMethod.Delete, path);
+      var response = await SendAsync(message);
+      var stringContent = await response.Content.ReadAsStringAsync();
+      if (!response.IsSuccessStatusCode)
+      {
+        throw new HttpRequestException($"{message.Method.Method} Failed: {stringContent}, HttpStatus: {response.StatusCode}");
+      }
+    }
+
+    internal async Task<TResponse> Post<TResponse>(string path, object body, HttpMethod method = null, bool verboseOdata = false)
       where TResponse : class
     {
       var message = new HttpRequestMessage(HttpMethod.Post, Uri.EscapeDataString(path));
@@ -213,50 +265,25 @@ namespace Azure.MediaServices.Core
         message.Method = method;
       var bodyContent = JsonConvert.SerializeObject(body, _jsonSerializerSettings);
       message.Content = new StringContent(bodyContent, Encoding.UTF8, "application/json");
-      var response = await _httpClient.SendAsync(message);
+      if (verboseOdata)
+        message.Content.Headers.ContentType.Parameters.Add(new NameValueHeaderValue("odata", "verbose"));
+      var response = await SendAsync(message);
       var stringContent = await response.Content.ReadAsStringAsync();
-      if (!response.IsSuccessStatusCode) throw new HttpRequestException($"{message.Method.Method} Failed: {stringContent}, HttpStatus: {response.StatusCode}");
+      if (!response.IsSuccessStatusCode)
+      {
+        throw new HttpRequestException($"{message.Method.Method} Failed: {stringContent}, HttpStatus: {response.StatusCode}");
+      }
       if (response.StatusCode == HttpStatusCode.NoContent)
-        return await Task.FromResult((TResponse) null);
+        return await Task.FromResult((TResponse)null);
 
-      var responseObject =
-        JsonConvert.DeserializeObject<ODataResponse<TResponse>>(stringContent, _jsonSerializerSettings);
+      var responseObject = JsonConvert.DeserializeObject<ODataResponse<TResponse>>(stringContent, _jsonSerializerSettings);
       return responseObject.D;
     }
 
-    internal async Task<List<TResponse>> Send<TResponse>(string path, HttpMethod method, object body)
+    private async Task<HttpResponseMessage> SendAsync(HttpRequestMessage message)
     {
-      var request = new HttpRequestMessage(method, Uri.EscapeDataString(path));
-      var bodyContent = JsonConvert.SerializeObject(body, _jsonSerializerSettings);
-      request.Content = new StringContent(bodyContent);
-
-      var response = await _httpClient.SendAsync(request);
-      var stringContent = await response.Content.ReadAsStringAsync();
-      if (!response.IsSuccessStatusCode)
-        throw new WebException("Failed");
-      var responseObject =
-        JsonConvert.DeserializeObject<ODataResult<TResponse>>(stringContent, _jsonSerializerSettings);
-      return responseObject.D.Results;
-    }
-
-    private async Task SetupJWT()
-    {
-      var body =
-        $"resource={HttpUtility.UrlEncode(Constants.Resource)}&client_id={_clientId}&client_secret={HttpUtility.UrlEncode(_clientSecret)}&grant_type=client_credentials";
-
-      var httpContent = new StringContent(body, Encoding.UTF8, "application/x-www-form-urlencoded");
-      var response = await _httpClient.PostAsync($"https://login.microsoftonline.com/{_tenantDomain}/oauth2/token",
-        httpContent);
-
-      if (!response.IsSuccessStatusCode) throw new Exception();
-
-      var resultBody = await response.Content.ReadAsStringAsync();
-
-      var obj = JObject.Parse(resultBody);
-
-      if (obj["access_token"] != null)
-        _httpClient.DefaultRequestHeaders.Authorization =
-          new AuthenticationHeaderValue("Bearer", obj["access_token"].ToString());
+      message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", await _adalTokenClient.GetTokenAsync().ConfigureAwait(false));
+      return await _httpClient.SendAsync(message).ConfigureAwait(false);
     }
   }
 }

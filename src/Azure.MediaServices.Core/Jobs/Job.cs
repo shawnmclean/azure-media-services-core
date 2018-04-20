@@ -37,6 +37,7 @@ namespace Azure.MediaServices.Core.Jobs
     public int RunningDuration { get; set; }
     public JobState State { get; set; }
     public DeferredAsset InputMediaAssets { get; set; }
+    public DeferredAsset OutputMediaAssets { get; set; }
   }
 
   public class DeferredAsset

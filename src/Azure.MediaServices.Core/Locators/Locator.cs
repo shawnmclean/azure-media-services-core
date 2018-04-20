@@ -9,7 +9,7 @@ namespace Azure.MediaServices.Core.Locators
     public string Id { get; set; }
     public string Name { get; set; }
     public DateTime ExpirationDateTime { get; set; }
-    public int Type { get; set; }
+    public LocatorType Type { get; set; }
     public string Path { get; set; }
     public string BaseUri { get; set; }
     public string AccessPolicyId { get; set; }
